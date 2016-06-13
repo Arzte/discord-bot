@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["TheDoctorsLife <thedoctorslife@users.noreply.github.com>"]
 
 [dependencies]
+discord = "0.5.0"
