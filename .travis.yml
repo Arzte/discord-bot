@@ -1,0 +1,83 @@
+language: rust
+rust:
+- stable
+- beta
+- nightly
+matrix:
+  fast_finish: true
+  allow_failures:
+  - rust: nightly
+cache: cargo
+cache: apt
+cache:
+  directories:
+    - $HOME/libsodium-1.0.8
+    - $HOME/installed_libsodium
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
+# load travis-cargo.
+before_install:
+  - |
+    if [ ! -d "$HOME/libsodium-1.0.8/dist-build" ]; then
+      wget -O $HOME/libsodium-1.0.8.tar.gz https://github.com/jedisct1/libsodium/releases/download/1.0.8/libsodium-1.0.8.tar.gz
+      tar xvfz $HOME/libsodium-1.0.8.tar.gz
+    fi
+  - |
+    if [ ! -d "$HOME/installed_libsodium/lib" ]; then
+      cd libsodium-1.0.8
+      ./configure --prefix=$HOME/installed_libsodium
+      make
+      make install
+      cd ..
+    fi
+  - export PKG_CONFIG_PATH=$HOME/installed_libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
+  - export LD_LIBRARY_PATH=$HOME/installed_libsodium/lib:$LD_LIBRARY_PATH
+before_script:
+  - |
+      pip install 'travis-cargo<0.2' --user &&
+      export PATH=$HOME/.local/bin:$PATH
+
+# the main build
+script:
+  - |
+      travis-cargo build &&
+      travis-cargo test &&
+      travis-cargo bench &&
+      travis-cargo --only stable doc
+after_success:
+  # upload the documentation from the build with stable (automatically only actually
+  # runs on the master branch, not individual PRs)
+  - travis-cargo --only stable doc-upload
+  # measure code coverage and upload to coveralls.io (the verify
+  # argument mitigates kcov crashes due to malformed debuginfo, at the
+  # cost of some speed <https://github.com/huonw/travis-cargo/issues/12>)
+  - travis-cargo coveralls --no-sudo --verify
+
+env:
+  global:
+    # encrypted github token for doc upload
+    secure: "lCN6rBfwhIckFMGFTXhYLXxr3EAHfgG3zag/NgrnGQxd2jacBIf7kUTMbXYwO2ovst97q6MxbOCEX5ebMjoCKKCywWvG2u7dYM5D7uH2W1/zCFS6YvARz3h00pFNJh1gWCX2POtFH4i231HFjWHe5FQD5TL+/q/VktLBuXwrNd+qILiPYuZMjdkGbvMjbmiT/KgI8IzA4Qd48xRih3I5uH9eDYmjZ59we98rtER4XmYq2IPBmRlkj835zEdZNAcV1kJHSuhrRVh/ijGeV703qSEB97NAM7jE0UaCWc2o/fakP77dX3bsSU7FrH3HLPstn4t1XTw1Oo9eAGa0Up6lMiVtkuzCDnzROkTmLKiQtBJIGrUrqsnFmKPFfcOhK1/kCe4xccSLg6WoQqlZaOlwjOcu2rOMCtO0phyjqBb9G/ZTcHfGShHEZV7yWVdEHp66AyFytywdr1EZsPpcllZNNZ4tODfUCv5i3BKtUopyhKYwh8wBuqT4q9orH3+h35Q7Htmi54AhqJf/UGe+5ssYUaQ9o0XyhcTiy2M88oZfndfml86jEWF7QXxraEOODgKB9nMBc6TlIVgCA03mQL+ofNlgJk5DDvyhhEymeBVOCTiPRAC+AmyQUepwTdIMyWviDPIU3GD80ocmZ7oJg/BC1fVwT0OrBs5HZV2Os2EFt+I="
+notifications:
+  email:
+    recipients:
+      secure: ZmaMhBI3vU0tGSq1aFBL+yr8TZVWBygPoiihbwXyHm9yFOSJ0Xh3J2xX6/FusPO0U9r+RcCh2QSiyctFylCBtvc7FCzV5UJ7arkMgosnGb5EsOkW/NhZ9IQRxTD/27ju6TXtwjStyyDX13IEaMpG4GB43yzqGpqA0JS+CUEKJn8bLtxMeBJTBiA6rx3A0/dre65cyS5b0iL/RSWnLHgJipVCszJtYyr/Cd8XBLp7FyjeueGvd4u9AnLzYRQjuafG/zyKfn98VVJ/koEy3w5oJ8pJzqW2KVmQeyLyDre6krIP7gK9flIJJQC/PcEvs11q7IpTEtKcdDUuNLsRjfP25z9UUu8fO2vDOYJmg5iFZ40T4n+dIooT9vQvg563xn3xhwkmn+z9AWF5Ay2EHh99mKrMCrLL/68wgpzAHLDYaid/SpgGSCBH43uhfbgT4jSGsGdETmGQZGC0hrPXVDiyKHh54XZtlJCt4ZCtW+0sDyi03X6Y+ISpHV2TZtctDs4WeemAqScrnFB5LocUf0B23/UwTUEQMIBgXHZ5RbehA5cmcWzKoUGFUdcEsaA2z7QShkYaewAzFZ84v1/+b7huaL4w+Btpwk3Wu+o8c3AFe73sDr+AjD1I3gRa8lzsq7mzJ7SeHkoLZ41bTuW+NkvRAfiC2oddeK83MZLL/mMRVNM=
+    on_success: change
+    on_failure: change
+  irc:
+    channels:
+      secure: Obp76KDrFueDGDfTDcyHqx2RvZ8qwUQ+Hy2hx/PSOs7VgEisOWI1jprSmElvKRaDqZVwvYxG+OG/YjCo/8+DGGtMxcOAE+1iu9EZbZSofuGjU9TQWIk3aRCgHOlAmYyT5RyiXKVBB1jJOssYq6dBrD+XiSWk5Fvjb7RqGaKoyhrs8AKcXZ997zWQsynMm1DhBid+sw7YRoFhXTK6vgzFQFoZF19DRbXD4Gj9Jc2VTPzeHkX6b2o2r0SujWA/1GM+732ty61aM1iPWcHJPgDZEhNKvBpSNQBpOBADdUfPojrDSdlsLQPEzjh/PWLEheymN2LRHUZe0JpVFS3CAtFhEOy2GlEH8WCmcTEZmjcX+rMhbF3VzLd+Iyp/o19HClNGJCW+jvGY1HTn5gn9cD5/SAQg+QVTSAJNWKNt77/WEakAqKboAmO3nHLKgPg/sL8U88WXj0b//9MdyPbOuYXMZLwDGmuGdkj3qVoX6kOg1uTxufS5+2Vph+EMYPmhe4rc3rWzt8h+jovbAXWrk2M3LDvABcbWHkDWegByMmoSjW0BaYXA1UjwUu7tuRyRzRreX8dvYMq+E6j/MltiPP1jxGWszzzjms7ILw0o42gYmFO5xHbpbfOKEgNlCujEj3UgYlXjs3q1bA4EiXTnALjgjnk3wVvOFMykL1I+sIb+cSo=
+    on_success: always
+    on_failure: always
+    on_error: always
+    use_notice: true
+    skip_join: true
+    template:
+    - "%{repository_slug}#%{build_number} (%{branch} - %{commit} : %{author}) : %{message} "
+    - "Result: %{result}"
+    - 'Build details: %{build_url}'
+    - 'Compare commits: %{compare_url}'
