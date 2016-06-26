@@ -13,17 +13,15 @@ fn main() {
     let mut config = String::new();
     file.read_to_string(&mut config).unwrap();
 
-    let json = de::from_str(&config).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&config).unwrap();
     let botTokens = json.find_path(&["bot-token"]).unwrap();
     let welcomeMessage = json.find_path(&["welcome-message"]).unwrap();
 
-    println!("bot-token has been set to {} from config", botTokens);
-    println!("welcome-message has been set to {} from the config",
-             welcomeMessage);
+    //    println!("bot-token has been set to {} from config", botTokens);
+    //    println!("welcome-message has been set to {} from the config", welcomeMessage);
 
     // Login to the API
-    let discord = Discord::from_bot_token(&(botTokens).expect("Bad {}", botTokens))
-        .expect("Login Fail");
+    let discord = Discord::from_bot_token(botTokens.as_string().unwrap()).expect("Login Fail");
 
     // establish websocket and voice connection
     let (mut connection, ready) = discord.connect().expect("connect failed");
