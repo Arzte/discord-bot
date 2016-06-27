@@ -1,6 +1,4 @@
 {
   "bot-token": "botwantsin123",
-  "welcome-message": "Please enjoy your stay!",
-  "_comment_welcome-channel": "NOTE: We need the channels ID not its name. (eg 152594445243352960 not #general)",
-  "welcome-channel": "152594445243352960"
+  "welcome-message": "Please enjoy your stay!"
 }

@@ -4,7 +4,7 @@ extern crate serde_json;
 use std::fs::File;
 use std::io::Read;
 use discord::{Discord, State};
-use discord::model::{Event, LiveServer, Member};
+use discord::model::{Event, ChannelId};
 
 fn main() {
     // Read and set config vars
@@ -102,6 +102,24 @@ fn main() {
                             .count() <= 1 {
                             connection.voice(server_id).disconnect();
                         }
+                    }
+                }
+            }
+
+            Event::ServerMemberAdd(server_joined_id, member) => {
+                let channel_id = ChannelId(server_joined_id.0);
+
+                for server in state.servers() {
+                    if server.id == server_joined_id {
+                        discord.send_message(&channel_id,
+                                             &format!("Welcome {} to {}! {}",
+                                                      member.user.name,
+                                                      server.name,
+                                                      welcome_message),
+                                             "",
+                                             false);
+
+                        break;
                     }
                 }
             }
