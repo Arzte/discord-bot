@@ -23,15 +23,12 @@ addons:
 # load travis-cargo.
 before_install:
   - |
-    if [ ! -d "$HOME/libsodium-1.0.8/dist-build" ]; then
+    if [ ! -d "$HOME/installed_libsodium/lib" ]; then
       wget -O $HOME/libsodium-1.0.8.tar.gz https://github.com/jedisct1/libsodium/releases/download/1.0.8/libsodium-1.0.8.tar.gz
       tar xvfz $HOME/libsodium-1.0.8.tar.gz
-    fi
-  - |
-    if [ ! -d "$HOME/installed_libsodium/lib" ]; then
       cd libsodium-1.0.8
       ./configure --prefix=$HOME/installed_libsodium
-      make
+      make -j2
       make install
       cd ..
     fi
