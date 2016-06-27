@@ -1,7 +1,6 @@
 extern crate discord;
 extern crate serde_json;
 
-use serde_json::de;
 use std::fs::File;
 use std::io::Read;
 use discord::{Discord, State};
@@ -14,14 +13,15 @@ fn main() {
     file.read_to_string(&mut config).unwrap();
 
     let json: serde_json::Value = serde_json::from_str(&config).unwrap();
-    let botTokens = json.find_path(&["bot-token"]).unwrap();
-    let welcomeMessage = json.find_path(&["welcome-message"]).unwrap();
+    let bot_tokens = json.find_path(&["bot-token"]).unwrap();
+    let welcome_message = json.find_path(&["welcome-message"]).unwrap();
 
-    //    println!("bot-token has been set to {} from config", botTokens);
-    //    println!("welcome-message has been set to {} from the config", welcomeMessage);
+    println!("bot-token has been set to {} from config", bot_tokens);
+    println!("welcome-message has been set to {} from the config",
+             welcome_message);
 
     // Login to the API
-    let discord = Discord::from_bot_token(botTokens.as_string().unwrap()).expect("Login Fail");
+    let discord = Discord::from_bot_token(bot_tokens.as_string().unwrap()).expect("Login Fail");
 
     // establish websocket and voice connection
     let (mut connection, ready) = discord.connect().expect("connect failed");
