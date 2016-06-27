@@ -11,7 +11,6 @@ cache: cargo
 cache: apt
 cache:
   directories:
-    - $HOME/libsodium-1.0.8
     - $HOME/installed_libsodium
 addons:
   apt:
@@ -26,11 +25,12 @@ before_install:
     if [ ! -d "$HOME/installed_libsodium/lib" ]; then
       wget -O $HOME/libsodium-1.0.8.tar.gz https://github.com/jedisct1/libsodium/releases/download/1.0.8/libsodium-1.0.8.tar.gz
       tar xvfz $HOME/libsodium-1.0.8.tar.gz
-      cd libsodium-1.0.8
+      cd $HOME/libsodium-1.0.8
       ./configure --prefix=$HOME/installed_libsodium
       make -j2
       make install
       cd ..
+      rm -r $HOME/libsodium-1.0.8
     fi
   - export PKG_CONFIG_PATH=$HOME/installed_libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
   - export LD_LIBRARY_PATH=$HOME/installed_libsodium/lib:$LD_LIBRARY_PATH
@@ -41,11 +41,10 @@ before_script:
 
 # the main build
 script:
-  - |
-      travis-cargo build &&
-      travis-cargo test &&
-      travis-cargo bench &&
-      travis-cargo --only stable doc
+  -   travis-cargo build
+  -   travis-cargo test
+  -   travis-cargo bench
+  -   travis-cargo --only stable doc
 after_success:
   # upload the documentation from the build with stable (automatically only actually
   # runs on the master branch, not individual PRs)
