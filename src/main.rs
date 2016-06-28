@@ -4,7 +4,7 @@ extern crate serde_json;
 use std::fs::File;
 use std::io::Read;
 use discord::{Discord, State};
-use discord::model::{Event, ChannelId};
+use discord::model::{Event, ChannelId, UserId};
 
 fn main() {
     // Read and set config vars
@@ -16,10 +16,9 @@ fn main() {
     let bot_tokens = json.find_path(&["bot-token"]).unwrap();
     let welcome_message = json.find_path(&["welcome-message"]).unwrap();
 
-    println!("[Info] bot-token has been set to {} from config",
-             bot_tokens);
-    println!("[Info] welcome-message has been set to {} from the config",
-             welcome_message);
+    info(&format!("[bot-token has been set to {} from config", bot_tokens));
+    info(&format!("welcome-message has been set to {} from the config",
+                  welcome_message));
 
     // Login to the API
     let discord = Discord::from_bot_token(bot_tokens.as_string().unwrap()).expect("Login Fail");
@@ -36,7 +35,7 @@ fn main() {
         let event = match connection.recv_event() {
             Ok(event) => event,
             Err(err) => {
-                println!("[Warning] Receive error: {:?}", err);
+                warning(&format!("Receive error: {:?}", err));
                 if let discord::Error::WebSocket(..) = err {
                     // Handle the websocket connection being dropped
                     let (new_connection, ready) = discord.connect().expect("connect failed");
@@ -66,39 +65,15 @@ fn main() {
                 let argument = split.next().unwrap_or("");
 
                 if first_word.eq_ignore_ascii_case("!help") {
-                    let result = discord.send_message(&message.channel_id,
-                                                      &format!("Here's the help that @{} \
-                                                                wanted:\n\n'!dj' Allows you to \
-                                                                play YT videos in whatever \
-                                                                voice channel you are in.\nHas \
-                                                                two sub commands 'stop' Stops \
-                                                                the current song, & 'quit' \
-                                                                causes the bot to exit to \
-                                                                VC\n\n'!help' Shows this output.",
-                                                               message.author.name),
-                                                      "",
-                                                      false);
-                    match result {
-                        Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
-                        Err(discord::Error::RateLimited(milliseconds)) => {
-                            let sleep_duration = std::time::Duration::from_millis(milliseconds);
-                            std::thread::sleep(sleep_duration);
-                            let _ =
-                                discord.send_message(&message.channel_id,
-                                                     &format!("Here's the help that @{} \
-                                                               wanted:\n\n'!dj' Allows you to \
-                                                               play YT videos in whatever voice \
-                                                               channel you are in.\nHas two sub \
-                                                               commands 'stop' Stops the \
-                                                               current song, & 'quit' causes \
-                                                               the bot to exit to VC\n\n'!help' \
-                                                               Shows this output.",
-                                                              message.author.name),
-                                                     "",
-                                                     false);
-                        }
-                        _ => {} // discard all other events
-                    }
+                    try_twice(&discord,
+                              &message.channel_id,
+                              &format!("Here's the help that @{} wanted:\n\n'!dj' Allows you to \
+                                        play YT videos in whatever voice channel you are \
+                                        in.\nHas two sub commands 'stop' Stops the current \
+                                        song, & 'quit' causes the bot to exit to VC\n\n'!help' \
+                                        Shows this output.",
+                                       message.author.name));
+
                     break;
                 } else if first_word.eq_ignore_ascii_case("!dj") {
                     let vchan = state.find_voice_user(message.author.id);
@@ -125,6 +100,15 @@ fn main() {
                             warn(discord.send_message(&message.channel_id, &output, "", false));
                         }
                     }
+                } else if first_word.eq_ignore_ascii_case("!quit") {
+                    if message.author.id == UserId(5417) {
+                        std::process::exit(1);
+                    } else {
+                        try_twice(&discord,
+                                  &message.channel_id,
+                                  "Your not authorized to do that");
+                        warning("Somebody not authorized tried to kill me.");
+                    }
                 }
             }
             Event::VoiceStateUpdate(server_id, _) => {
@@ -146,29 +130,12 @@ fn main() {
 
                 for server in state.servers() {
                     if server.id == server_joined_id {
-                        let result = discord.send_message(&channel_id,
-                                                          &format!("Welcome {} to {}! {}",
-                                                                   member.user.name,
-                                                                   server.name,
-                                                                   welcome_message),
-                                                          "",
-                                                          false);
-
-                        match result {
-                            Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
-                            Err(discord::Error::RateLimited(milliseconds)) => {
-                                let sleep_duration = std::time::Duration::from_millis(milliseconds);
-                                std::thread::sleep(sleep_duration);
-                                let _ = discord.send_message(&channel_id,
-                                                             &format!("Welcome {} to {}! {}",
-                                                                      member.user.name,
-                                                                      server.name,
-                                                                      welcome_message),
-                                                             "",
-                                                             false);
-                            }
-                            _ => {} // discard all other events
-                        }
+                        try_twice(&discord,
+                                  &channel_id,
+                                  &format!("Welcome {} to {}! {}",
+                                           member.user.name,
+                                           server.name,
+                                           welcome_message));
                         break;
                     }
                 }
@@ -176,7 +143,6 @@ fn main() {
             _ => {} // discard other events
         }
     }
-    discord.logout().expect("logout failed");
 }
 
 fn warn<T, E: ::std::fmt::Debug>(result: Result<T, E>) {
@@ -184,4 +150,27 @@ fn warn<T, E: ::std::fmt::Debug>(result: Result<T, E>) {
         Ok(_) => {}
         Err(err) => println!("[Warning] {:?}", err),
     }
+}
+
+fn try_twice(discord: &Discord, channel: &ChannelId, message: &str) {
+    let result = discord.send_message(channel, message, "", false);
+    match result {
+        Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
+        Err(discord::Error::RateLimited(milliseconds)) => {
+            let sleep_duration = std::time::Duration::from_millis(milliseconds);
+
+            warning(&format!("We were rate limited for {:?} milliseconds.",
+                             sleep_duration));
+            std::thread::sleep(sleep_duration);
+            try_twice(discord, channel, message);
+        }
+        _ => {} // discard all other events
+    }
+}
+
+fn warning(output: &str) {
+    println!("[Warning] {}", output);
+}
+fn info(output: &str) {
+    println!("[Info] {}", output);
 }
