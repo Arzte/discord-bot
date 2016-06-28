@@ -65,16 +65,21 @@ fn main() {
                 let argument = split.next().unwrap_or("");
 
                 if first_word.eq_ignore_ascii_case("!help") {
-                    try_twice(&discord,
-                              &message.channel_id,
-                              &format!("Here's the help that @{} wanted:\n\n'!dj' Allows you to \
-                                        play YT videos in whatever voice channel you are \
-                                        in.\nHas two sub commands 'stop' Stops the current \
-                                        song, & 'quit' causes the bot to exit to VC\n\n'!help' \
-                                        Shows this output.",
-                                       message.author.name));
-
-                    break;
+                    if argument.eq_ignore_ascii_case("dj") {
+                        try_twice(&discord,
+                                  &message.channel_id,
+                                  &format!("``!dj`` Plays YouTube videos in Voice Chat\n``!dj \
+                                            stop`` Stops the current playing song.\n``!dj \
+                                            quit`` Stops the current playing song, and exits \
+                                            the Voice Chat."));
+                    } else {
+                        try_twice(&discord,
+                                  &message.channel_id,
+                                  &format!("Here's the help that @{} wanted:\n\n``!dj`` Plays \
+                                            YouTube videos in Voice Chat. See ``!help dj`` for \
+                                            more info\n\n``!help`` Shows this output.",
+                                           message.author.name));
+                    }
                 } else if first_word.eq_ignore_ascii_case("!dj") {
                     let vchan = state.find_voice_user(message.author.id);
                     if argument.eq_ignore_ascii_case("stop") {
@@ -136,7 +141,6 @@ fn main() {
                                            member.user.name,
                                            server.name,
                                            welcome_message));
-                        break;
                     }
                 }
             }
