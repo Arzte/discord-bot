@@ -105,20 +105,34 @@ fn main() {
                     }
                 }
             }
-
             Event::ServerMemberAdd(server_joined_id, member) => {
                 let channel_id = ChannelId(server_joined_id.0);
 
                 for server in state.servers() {
                     if server.id == server_joined_id {
-                        discord.send_message(&channel_id,
-                                             &format!("Welcome {} to {}! {}",
-                                                      member.user.name,
-                                                      server.name,
-                                                      welcome_message),
-                                             "",
-                                             false);
+                        let result = discord.send_message(&channel_id,
+                                                          &format!("Welcome {} to {}! {}",
+                                                                   member.user.name,
+                                                                   server.name,
+                                                                   welcome_message),
+                                                          "",
+                                                          false);
 
+                        match result {
+                            Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
+                            Err(discord::Error::RateLimited(milliseconds)) => {
+                                let sleep_duration = std::time::Duration::from_millis(milliseconds);
+                                std::thread::sleep(sleep_duration);
+                                let _ = discord.send_message(&channel_id,
+                                                             &format!("Welcome {} to {}! {}",
+                                                                      member.user.name,
+                                                                      server.name,
+                                                                      welcome_message),
+                                                             "",
+                                                             false);
+                            }
+                            _ => {} // discard all other events
+                        }
                         break;
                     }
                 }
