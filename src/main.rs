@@ -65,7 +65,42 @@ fn main() {
                 let first_word = split.next().unwrap_or("");
                 let argument = split.next().unwrap_or("");
 
-                if first_word.eq_ignore_ascii_case("!dj") {
+                if first_word.eq_ignore_ascii_case("!help") {
+                    let result = discord.send_message(&message.channel_id,
+                                                      &format!("Here's the help that @{} \
+                                                                wanted:\n\n'!dj' Allows you to \
+                                                                play YT videos in whatever \
+                                                                voice channel you are in.\nHas \
+                                                                two sub commands 'stop' Stops \
+                                                                the current song, & 'quit' \
+                                                                causes the bot to exit to \
+                                                                VC\n\n'!help' Shows this output.",
+                                                               message.author.name),
+                                                      "",
+                                                      false);
+                    match result {
+                        Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
+                        Err(discord::Error::RateLimited(milliseconds)) => {
+                            let sleep_duration = std::time::Duration::from_millis(milliseconds);
+                            std::thread::sleep(sleep_duration);
+                            let _ =
+                                discord.send_message(&message.channel_id,
+                                                     &format!("Here's the help that @{} \
+                                                               wanted:\n\n'!dj' Allows you to \
+                                                               play YT videos in whatever voice \
+                                                               channel you are in.\nHas two sub \
+                                                               commands 'stop' Stops the \
+                                                               current song, & 'quit' causes \
+                                                               the bot to exit to VC\n\n'!help' \
+                                                               Shows this output.",
+                                                              message.author.name),
+                                                     "",
+                                                     false);
+                        }
+                        _ => {} // discard all other events
+                    }
+                    break;
+                } else if first_word.eq_ignore_ascii_case("!dj") {
                     let vchan = state.find_voice_user(message.author.id);
                     if argument.eq_ignore_ascii_case("stop") {
                         vchan.map(|(sid, _)| connection.voice(sid).stop());
