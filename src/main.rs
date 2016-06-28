@@ -16,8 +16,9 @@ fn main() {
     let bot_tokens = json.find_path(&["bot-token"]).unwrap();
     let welcome_message = json.find_path(&["welcome-message"]).unwrap();
 
-    println!("bot-token has been set to {} from config", bot_tokens);
-    println!("welcome-message has been set to {} from the config",
+    println!("[Info] bot-token has been set to {} from config",
+             bot_tokens);
+    println!("[Info] welcome-message has been set to {} from the config",
              welcome_message);
 
     // Login to the API
@@ -140,6 +141,7 @@ fn main() {
             _ => {} // discard other events
         }
     }
+    discord.logout().expect("logout failed");
 }
 
 fn warn<T, E: ::std::fmt::Debug>(result: Result<T, E>) {
