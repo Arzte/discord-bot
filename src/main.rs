@@ -1,10 +1,18 @@
+#![feature(plugin)]
+#![plugin(serde_macros)]
+#![feature(custom_derive)]
+#![feature(custom_attribute)]
 extern crate discord;
+extern crate serde;
 extern crate serde_json;
+extern crate hyper;
+extern crate url;
 
 use std::fs::File;
 use std::io::Read;
 use discord::{Discord, State};
 use discord::model::{Event, ChannelId, UserId};
+use url::Url;
 
 fn main() {
     // Read and set config vars
@@ -16,7 +24,7 @@ fn main() {
     let bot_tokens = json.find_path(&["bot-token"]).unwrap();
     let welcome_message = json.find_path(&["welcome-message"]).unwrap();
 
-    info(&format!("[bot-token has been set to {} from config", bot_tokens));
+    info(&format!("[bot-token has been set to [REDACTED] from config"));
     info(&format!("welcome-message has been set to {} from the config",
                   welcome_message));
 
@@ -75,10 +83,11 @@ fn main() {
                     } else {
                         try_twice(&discord,
                                   &message.channel_id,
-                                  &format!("Here's the help that @{} wanted:\n\n``!dj`` Plays \
+                                  &format!("Here's the help that {} wanted:\n\n``!dj`` Plays \
                                             YouTube videos in Voice Chat. See ``!help dj`` for \
-                                            more info\n\n``!help`` Shows this output.",
-                                           message.author.name));
+                                            more info\n\n``!catfacts`` Lists a random fact \
+                                            about cats.\n\n``!help`` Shows this output.",
+                                           message.author.id.mention()));
                     }
                 } else if first_word.eq_ignore_ascii_case("!dj") {
                     let vchan = state.find_voice_user(message.author.id);
@@ -105,6 +114,32 @@ fn main() {
                             warn(discord.send_message(&message.channel_id, &output, "", false));
                         }
                     }
+                } else if first_word.eq_ignore_ascii_case("!catfacts") {
+                    // Construct the URL you want to access
+                    let url = "http://catfacts-api.appspot.com/api/facts?number=1"
+                        .parse::<Url>()
+                        .expect("Unable to parse URL");
+
+                    // Initialize the Hyper client and make the request.
+                    let client = hyper::Client::new();
+                    let mut response = client.get(url).send().unwrap();
+
+                    // Initialize a string buffer, and read the response into it.
+                    let mut result = String::new();
+                    response.read_to_string(&mut result).unwrap();
+
+                    // Deserialize the result.
+                    #[derive(Deserialize)]
+                    pub struct CatFacts {
+                        pub facts: Vec<String>,
+                        pub success: bool,
+                    }
+                    let cat_facts =
+                        serde_json::from_str::<CatFacts>(&result).unwrap().facts.pop().unwrap();
+
+                    try_twice(&discord,
+                              &message.channel_id,
+                              &format!("{}:\n {:?}", message.author.id.mention(), cat_facts));
                 } else if first_word.eq_ignore_ascii_case("!quit") {
                     if message.author.id == UserId(77812253511913472) {
                         try_twice(&discord, &message.channel_id, "Shutting Down...");
@@ -174,6 +209,56 @@ fn try_twice(discord: &Discord, channel: &ChannelId, message: &str) {
         }
         _ => {} // discard all other events
     }
+}
+
+fn remove_quote(text: &str) -> String {
+    let mut start_quote = None;
+    let mut end_quote = None;
+    let mut bytes: Vec<u8> = text.bytes().collect();
+
+    for (i, &c) in bytes.iter().enumerate() {
+        if c == b'"' {
+            start_quote = Some(i);
+            break;
+        }
+    }
+
+    for (i, &c) in bytes.iter().enumerate().rev() {
+        if c == b'"' {
+            end_quote = Some(i);
+            break;
+        }
+    }
+
+    bytes.remove(end_quote.unwrap());
+    bytes.remove(start_quote.unwrap());
+
+    String::from_utf8(bytes).unwrap()
+}
+
+fn remove_block_brace(text: &str) -> String {
+    let mut start_brace = None;
+    let mut end_brace = None;
+    let mut bytes: Vec<u8> = text.bytes().collect();
+
+    for (i, &c) in bytes.iter().enumerate() {
+        if c == b'[' {
+            start_brace = Some(i);
+            break;
+        }
+    }
+
+    for (i, &c) in bytes.iter().enumerate().rev() {
+        if c == b']' {
+            end_brace = Some(i);
+            break;
+        }
+    }
+
+    bytes.remove(end_brace.unwrap());
+    bytes.remove(start_brace.unwrap());
+
+    String::from_utf8(bytes).unwrap()
 }
 
 fn warning(output: &str) {
