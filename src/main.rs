@@ -68,10 +68,10 @@ fn main() {
                     if argument.eq_ignore_ascii_case("dj") {
                         try_twice(&discord,
                                   &message.channel_id,
-                                  &format!("``!dj`` Plays YouTube videos in Voice Chat\n``!dj \
-                                            stop`` Stops the current playing song.\n``!dj \
-                                            quit`` Stops the current playing song, and exits \
-                                            the Voice Chat."));
+                                  &format!("``!dj`` Plays YouTube videos in Voice \
+                                            Chat:\n\n``!dj stop`` Stops the current playing \
+                                            song.\n``!dj quit`` Stops the current playing song, \
+                                            and exits the Voice Chat."));
                     } else {
                         try_twice(&discord,
                                   &message.channel_id,
@@ -109,7 +109,7 @@ fn main() {
                     if message.author.id == UserId(77812253511913472) {
                         try_twice(&discord, &message.channel_id, "Shutting Down...");
                         info(&format!("{} has told me to quit.", message.author.name));
-                        std::process::exit(1);
+                        std::process::exit(0);
                     } else {
                         try_twice(&discord,
                                   &message.channel_id,
