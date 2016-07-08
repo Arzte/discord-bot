@@ -49,6 +49,7 @@ before_install:
 # Load travis-cargo
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+  - cargo install --force clippy
 
 # The main build
 script:
@@ -57,6 +58,7 @@ script:
     travis-cargo test &&
     travis-cargo bench &&
     travis-cargo --only stable doc
+  - cargo clippy
 
 # Upload Coveralls
 after_success:
