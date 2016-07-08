@@ -7,12 +7,14 @@ extern crate serde;
 extern crate serde_json;
 extern crate hyper;
 extern crate url;
+extern crate discord_bot;
 
 use std::fs::File;
 use std::io::Read;
 use discord::{Discord, State};
 use discord::model::{Event, ChannelId, UserId};
 use url::Url;
+use discord_bot::shortcuts::{try_twice, info, warn, warning, remove_quote};
 
 fn main() {
     // Read and set config vars
@@ -20,16 +22,22 @@ fn main() {
     let mut config = String::new();
     file.read_to_string(&mut config).unwrap();
 
-    let json: serde_json::Value = serde_json::from_str(&config).unwrap();
-    let bot_tokens = json.find_path(&["bot-token"]).unwrap();
-    let welcome_message = json.find_path(&["welcome-message"]).unwrap();
+    #[derive(Deserialize)]
+    pub struct Config {
+        pub bot_token: String,
+        pub welcome_message: String,
+    }
 
-    info(&format!("[bot-token has been set to [REDACTED] from config"));
+    let bot_tokens = serde_json::from_str::<Config>(&config).unwrap().bot_token;
+    let welcome_messages =
+        serde_json::from_str::<Config>(&config).unwrap().welcome_message.pop().unwrap();
+
+    info("[bot-token has been set to [REDACTED] from config");
     info(&format!("welcome-message has been set to {} from the config",
-                  welcome_message));
+                  welcome_messages));
 
     // Login to the API
-    let discord = Discord::from_bot_token(bot_tokens.as_string().unwrap()).expect("Login Fail");
+    let discord = Discord::from_bot_token(&bot_tokens).expect("Login Fail");
 
     // establish websocket and voice connection
     let (mut connection, ready) = discord.connect().expect("connect failed");
@@ -68,7 +76,7 @@ fn main() {
                 }
 
                 // reply to a command if there was one
-                let mut split = message.content.split(" ");
+                let mut split = message.content.split(' ');
                 let first_word = split.next().unwrap_or("");
                 let argument = split.next().unwrap_or("");
 
@@ -76,10 +84,10 @@ fn main() {
                     if argument.eq_ignore_ascii_case("dj") {
                         try_twice(&discord,
                                   &message.channel_id,
-                                  &format!("``!dj`` Plays YouTube videos in Voice \
+                                  "``!dj`` Plays YouTube videos in Voice \
                                             Chat:\n\n``!dj stop`` Stops the current playing \
                                             song.\n``!dj quit`` Stops the current playing song, \
-                                            and exits the Voice Chat."));
+                                            and exits the Voice Chat.");
                     } else {
                         try_twice(&discord,
                                   &message.channel_id,
@@ -97,7 +105,7 @@ fn main() {
                         vchan.map(|(sid, _)| connection.drop_voice(sid));
                     } else {
                         let output = if let Some((server_id, channel_id)) = vchan {
-                            match discord::voice::open_ytdl_stream(&argument) {
+                            match discord::voice::open_ytdl_stream(argument) {
                                 Ok(stream) => {
                                     let voice = connection.voice(server_id);
                                     voice.set_deaf(true);
@@ -110,7 +118,7 @@ fn main() {
                         } else {
                             "You must be in a voice channel to DJ".to_owned()
                         };
-                        if output.len() > 0 {
+                        if output.is_empty() {
                             warn(discord.send_message(&message.channel_id, &output, "", false));
                         }
                     }
@@ -134,8 +142,9 @@ fn main() {
                         pub facts: Vec<String>,
                         pub success: bool,
                     }
-                    let cat_facts =
+                    let cat_fact =
                         serde_json::from_str::<CatFacts>(&result).unwrap().facts.pop().unwrap();
+                    let cat_facts = remove_quote(&cat_fact);
 
                     try_twice(&discord,
                               &message.channel_id,
@@ -179,91 +188,11 @@ fn main() {
                                   &format!("Welcome {} to {}! {}",
                                            member.user.name,
                                            server.name,
-                                           welcome_message));
+                                           welcome_messages));
                     }
                 }
             }
             _ => {} // discard other events
         }
     }
-}
-
-fn warn<T, E: ::std::fmt::Debug>(result: Result<T, E>) {
-    match result {
-        Ok(_) => {}
-        Err(err) => println!("[Warning] {:?}", err),
-    }
-}
-
-fn try_twice(discord: &Discord, channel: &ChannelId, message: &str) {
-    let result = discord.send_message(channel, message, "", false);
-    match result {
-        Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
-        Err(discord::Error::RateLimited(milliseconds)) => {
-            let sleep_duration = std::time::Duration::from_millis(milliseconds);
-
-            warning(&format!("We were rate limited for {:?} milliseconds.",
-                             sleep_duration));
-            std::thread::sleep(sleep_duration);
-            try_twice(discord, channel, message);
-        }
-        _ => {} // discard all other events
-    }
-}
-
-fn remove_quote(text: &str) -> String {
-    let mut start_quote = None;
-    let mut end_quote = None;
-    let mut bytes: Vec<u8> = text.bytes().collect();
-
-    for (i, &c) in bytes.iter().enumerate() {
-        if c == b'"' {
-            start_quote = Some(i);
-            break;
-        }
-    }
-
-    for (i, &c) in bytes.iter().enumerate().rev() {
-        if c == b'"' {
-            end_quote = Some(i);
-            break;
-        }
-    }
-
-    bytes.remove(end_quote.unwrap());
-    bytes.remove(start_quote.unwrap());
-
-    String::from_utf8(bytes).unwrap()
-}
-
-fn remove_block_brace(text: &str) -> String {
-    let mut start_brace = None;
-    let mut end_brace = None;
-    let mut bytes: Vec<u8> = text.bytes().collect();
-
-    for (i, &c) in bytes.iter().enumerate() {
-        if c == b'[' {
-            start_brace = Some(i);
-            break;
-        }
-    }
-
-    for (i, &c) in bytes.iter().enumerate().rev() {
-        if c == b']' {
-            end_brace = Some(i);
-            break;
-        }
-    }
-
-    bytes.remove(end_brace.unwrap());
-    bytes.remove(start_brace.unwrap());
-
-    String::from_utf8(bytes).unwrap()
-}
-
-fn warning(output: &str) {
-    println!("[Warning] {}", output);
-}
-fn info(output: &str) {
-    println!("[Info] {}", output);
 }
