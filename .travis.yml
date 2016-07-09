@@ -12,11 +12,15 @@ matrix:
   - rust: beta
 
 cache:
-  - cargo
-  - apt
+  - cargo: true
+  - apt: true
+  - pip: true
   - directories:
     - $HOME/installed_libsodium
-
+    - target/debug/deps
+    - target/debug/build
+    - target/release/deps
+    - target/release/build
 addons:
   apt:
     packages:
@@ -53,15 +57,14 @@ before_script:
 
 # The main build
 script:
-  - |
-    travis-cargo build &&
-    travis-cargo test &&
-    travis-cargo bench &&
-    travis-cargo --only stable doc
+  - travis-cargo build
   - cargo clippy
+  - travis-cargo doc
+  - travis-cargo --only stable doc-upload
 
 # Upload Coveralls
 after_success:
+- travis-cargo --only nightly bench
 - |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz &&
