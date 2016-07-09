@@ -59,8 +59,6 @@ before_script:
 script:
   - travis-cargo build
   - cargo clippy
-  - travis-cargo doc
-  - travis-cargo --only stable doc-upload
 
 # Upload Coveralls
 after_success:
