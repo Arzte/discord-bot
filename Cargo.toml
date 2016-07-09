@@ -1,6 +1,6 @@
 [package]
 name = "discord-bot"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["TheDoctorsLife <hoffmeyer25@gmail.com>"]
 homepage = "https://github.com/TheDoctorsLife/discord-bot"
 repository = "git@github.com:TheDoctorsLife/discord-bot.git"
