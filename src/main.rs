@@ -12,9 +12,9 @@ extern crate discord_bot;
 use std::fs::File;
 use std::io::Read;
 use discord::{Discord, State};
-use discord::model::{Event, ChannelId, UserId};
+use discord::model::{ChannelId, Event, UserId};
 use url::Url;
-use discord_bot::shortcuts::{send_discord_message, info, warn, warning, remove_quote};
+use discord_bot::shortcuts::{info, remove_quote, send_discord_message, warn, warning};
 
 fn main() {
     // Read and set config vars
@@ -84,19 +84,16 @@ fn main() {
                     if argument.eq_ignore_ascii_case("dj") {
                         send_discord_message(&discord,
                                              &message.channel_id,
-                                             "``!dj`` Plays YouTube videos in Voice \
-                                              Chat:\n\n``!dj stop`` Stops the current playing \
-                                              song.\n``!dj quit`` Stops the current playing \
-                                              song, and exits the Voice Chat.");
+                                             "``!dj`` Plays YouTube videos in Voice Chat:\n\n\
+                                  ``!dj stop`` Stops the current playing song.\n\
+                                  ``!dj quit`` Stops the current playing song, and exits the Voice Chat.");
                     } else {
                         send_discord_message(&discord,
                                              &message.channel_id,
-                                             &format!("Here's the help that {} \
-                                                       wanted:\n\n``!dj`` Plays YouTube videos \
-                                                       in Voice Chat. See ``!help dj`` for more \
-                                                       info\n\n``!catfacts`` Lists a random \
-                                                       fact about cats.\n\n``!help`` Shows this \
-                                                       output.",
+                                             &format!("Here's the help that {} wanted:\n\n\
+                                  ``!dj`` Plays YouTube videos in Voice Chat. See ``!help dj`` for more info\n\n\
+                                  ``!catfacts`` Lists a random fact about cats.\n\n\
+                                  ``!help`` Shows this output.",
                                                       message.author.id.mention()));
                     }
                 } else if first_word.eq_ignore_ascii_case("!dj") {
