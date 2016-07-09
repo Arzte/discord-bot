@@ -14,7 +14,7 @@ use std::io::Read;
 use discord::{Discord, State};
 use discord::model::{Event, ChannelId, UserId};
 use url::Url;
-use discord_bot::shortcuts::{try_twice, info, warn, warning, remove_quote};
+use discord_bot::shortcuts::{send_discord_message, info, warn, warning, remove_quote};
 
 fn main() {
     // Read and set config vars
@@ -82,20 +82,22 @@ fn main() {
 
                 if first_word.eq_ignore_ascii_case("!help") {
                     if argument.eq_ignore_ascii_case("dj") {
-                        try_twice(&discord,
-                                  &message.channel_id,
-                                  "``!dj`` Plays YouTube videos in Voice \
-                                            Chat:\n\n``!dj stop`` Stops the current playing \
-                                            song.\n``!dj quit`` Stops the current playing song, \
-                                            and exits the Voice Chat.");
+                        send_discord_message(&discord,
+                                             &message.channel_id,
+                                             "``!dj`` Plays YouTube videos in Voice \
+                                              Chat:\n\n``!dj stop`` Stops the current playing \
+                                              song.\n``!dj quit`` Stops the current playing \
+                                              song, and exits the Voice Chat.");
                     } else {
-                        try_twice(&discord,
-                                  &message.channel_id,
-                                  &format!("Here's the help that {} wanted:\n\n``!dj`` Plays \
-                                            YouTube videos in Voice Chat. See ``!help dj`` for \
-                                            more info\n\n``!catfacts`` Lists a random fact \
-                                            about cats.\n\n``!help`` Shows this output.",
-                                           message.author.id.mention()));
+                        send_discord_message(&discord,
+                                             &message.channel_id,
+                                             &format!("Here's the help that {} \
+                                                       wanted:\n\n``!dj`` Plays YouTube videos \
+                                                       in Voice Chat. See ``!help dj`` for more \
+                                                       info\n\n``!catfacts`` Lists a random \
+                                                       fact about cats.\n\n``!help`` Shows this \
+                                                       output.",
+                                                      message.author.id.mention()));
                     }
                 } else if first_word.eq_ignore_ascii_case("!dj") {
                     let vchan = state.find_voice_user(message.author.id);
@@ -146,18 +148,20 @@ fn main() {
                         serde_json::from_str::<CatFacts>(&result).unwrap().facts.pop().unwrap();
                     let cat_facts = remove_quote(&cat_fact);
 
-                    try_twice(&discord,
-                              &message.channel_id,
-                              &format!("{}:\n {:?}", message.author.id.mention(), cat_facts));
+                    send_discord_message(&discord,
+                                         &message.channel_id,
+                                         &format!("{}:\n {:?}",
+                                                  message.author.id.mention(),
+                                                  cat_facts));
                 } else if first_word.eq_ignore_ascii_case("!quit") {
                     if message.author.id == UserId(77812253511913472) {
-                        try_twice(&discord, &message.channel_id, "Shutting Down...");
+                        send_discord_message(&discord, &message.channel_id, "Shutting Down...");
                         info(&format!("{} has told me to quit.", message.author.name));
                         std::process::exit(0);
                     } else {
-                        try_twice(&discord,
-                                  &message.channel_id,
-                                  "Your not authorized to do that");
+                        send_discord_message(&discord,
+                                             &message.channel_id,
+                                             "Your not authorized to do that");
                         warning(&format!("{} with the {:?} tried to kill me.",
                                          message.author.name,
                                          message.author.id));
@@ -183,12 +187,12 @@ fn main() {
 
                 for server in state.servers() {
                     if server.id == server_joined_id {
-                        try_twice(&discord,
-                                  &channel_id,
-                                  &format!("Welcome {} to {}! {}",
-                                           member.user.name,
-                                           server.name,
-                                           welcome_messages));
+                        send_discord_message(&discord,
+                                             &channel_id,
+                                             &format!("Welcome {} to {}! {}",
+                                                      member.user.name,
+                                                      server.name,
+                                                      welcome_messages));
                     }
                 }
             }

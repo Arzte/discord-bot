@@ -13,7 +13,7 @@ pub fn warn<T, E: ::std::fmt::Debug>(result: Result<T, E>) {
 
 #[allow(unknown_lints)]
 #[allow(match_same_arms)]
-pub fn try_twice(discord: &Discord, channel: &ChannelId, message: &str) {
+pub fn send_discord_message(discord: &Discord, channel: &ChannelId, message: &str) {
     let result = discord.send_message(channel, message, "", false);
     match result {
         Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
@@ -23,7 +23,7 @@ pub fn try_twice(discord: &Discord, channel: &ChannelId, message: &str) {
             warning(&format!("We were rate limited for {:?} milliseconds.",
                              sleep_duration));
             std::thread::sleep(sleep_duration);
-            try_twice(discord, channel, message);
+            send_discord_message(discord, channel, message);
         }
         _ => {} // discard all other events
     }
