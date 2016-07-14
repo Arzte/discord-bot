@@ -1,4 +1,6 @@
 {
-  "bot_token": "botwantsin123",
-  "welcome_message": "Please enjoy your stay!"
+  "discord_bot_token": "botwantsin123",
+  "server_welcome_message": "Please enjoy your stay!",
+  "cleverbot_api_user": "cleverbot_api_user",
+  "cleverbot_api_key": "cleverbot_api_key"
 }

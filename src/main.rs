@@ -1,13 +1,13 @@
 #![feature(plugin)]
 #![plugin(serde_macros)]
-#![feature(custom_derive)]
-#![feature(custom_attribute)]
+#![feature(custom_derive, custom_attribute, stmt_expr_attributes)]
 extern crate discord;
 extern crate serde;
 extern crate serde_json;
 extern crate hyper;
 extern crate url;
 extern crate discord_bot;
+extern crate cleverbot_io;
 
 use std::fs::File;
 use std::io::Read;
@@ -15,6 +15,7 @@ use discord::{Discord, State};
 use discord::model::{ChannelId, Event, UserId};
 use url::Url;
 use discord_bot::shortcuts::{info, remove_quote, send_discord_message, warn, warning};
+use cleverbot_io::Cleverbot;
 
 fn main() {
     // Read and set config vars
@@ -24,16 +25,23 @@ fn main() {
 
     #[derive(Deserialize)]
     pub struct Config {
-        pub bot_token: String,
-        pub welcome_message: String,
+        pub discord_bot_token: String,
+        pub server_welcome_message: String,
+        pub cleverbot_api_user: String,
+        pub cleverbot_api_key: String,
     }
 
-    let bot_tokens = serde_json::from_str::<Config>(&config).unwrap().bot_token;
-    let welcome_messages = serde_json::from_str::<Config>(&config).unwrap().welcome_message.pop().unwrap();
+    let config_json = serde_json::from_str::<Config>(&config).unwrap();
+    let bot_tokens = config_json.discord_bot_token;
+    let welcome_messages = config_json.server_welcome_message;
+    let api_user = config_json.cleverbot_api_user;
+    let api_key = config_json.cleverbot_api_key;
 
-    info("[bot-token has been set to [REDACTED] from config");
+    info("bot-token has been set to [REDACTED] from config");
     info(&format!("welcome-message has been set to {} from the config",
                   welcome_messages));
+    info(&format!("api_user {}", api_user));
+    info(&format!("api-key {}", api_key));
 
     // Login to the API
     let discord = Discord::from_bot_token(&bot_tokens).expect("Login Failed, Please make sure that you set a correct bot token.");
@@ -149,6 +157,10 @@ fn main() {
                                          &format!("{}:\n {:?}",
                                                   message.author.id.mention(),
                                                   cat_facts));
+                } else if first_word.eq_ignore_ascii_case("!cleverbot") {
+                    let mut bot = Cleverbot::new(api_user.clone(), api_key.clone(), None).unwrap();
+                    #[allow(useless_format)]
+                    send_discord_message(&discord, &message.channel_id, &format!("{}", bot.say(&format!("{}", message.content)).unwrap()));
                 } else if first_word.eq_ignore_ascii_case("!quit") {
                     if message.author.id == UserId(77812253511913472) {
                         send_discord_message(&discord, &message.channel_id, "Shutting Down...");
