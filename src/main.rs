@@ -29,15 +29,14 @@ fn main() {
     }
 
     let bot_tokens = serde_json::from_str::<Config>(&config).unwrap().bot_token;
-    let welcome_messages =
-        serde_json::from_str::<Config>(&config).unwrap().welcome_message.pop().unwrap();
+    let welcome_messages = serde_json::from_str::<Config>(&config).unwrap().welcome_message.pop().unwrap();
 
     info("[bot-token has been set to [REDACTED] from config");
     info(&format!("welcome-message has been set to {} from the config",
                   welcome_messages));
 
     // Login to the API
-    let discord = Discord::from_bot_token(&bot_tokens).expect("Login Fail");
+    let discord = Discord::from_bot_token(&bot_tokens).expect("Login Failed, Please make sure that you set a correct bot token.");
 
     // establish websocket and voice connection
     let (mut connection, ready) = discord.connect().expect("connect failed");
@@ -85,15 +84,15 @@ fn main() {
                         send_discord_message(&discord,
                                              &message.channel_id,
                                              "``!dj`` Plays YouTube videos in Voice Chat:\n\n\
-                                  ``!dj stop`` Stops the current playing song.\n\
-                                  ``!dj quit`` Stops the current playing song, and exits the Voice Chat.");
+                                             ``!dj stop`` Stops the current playing song.\n\
+                                             ``!dj quit`` Stops the current playing song, and exits the Voice Chat.");
                     } else {
                         send_discord_message(&discord,
                                              &message.channel_id,
                                              &format!("Here's the help that {} wanted:\n\n\
-                                  ``!dj`` Plays YouTube videos in Voice Chat. See ``!help dj`` for more info\n\n\
-                                  ``!catfacts`` Lists a random fact about cats.\n\n\
-                                  ``!help`` Shows this output.",
+                                                      ``!dj`` Plays YouTube videos in Voice Chat. See ``!help dj`` for more info\n\n\
+                                                      ``!catfacts`` Lists a random fact about cats.\n\n\
+                                                      ``!help`` Shows this output.",
                                                       message.author.id.mention()));
                     }
                 } else if first_word.eq_ignore_ascii_case("!dj") {
@@ -154,7 +153,7 @@ fn main() {
                     if message.author.id == UserId(77812253511913472) {
                         send_discord_message(&discord, &message.channel_id, "Shutting Down...");
                         info(&format!("{} has told me to quit.", message.author.name));
-                        std::process::exit(0);
+                        break;
                     } else {
                         send_discord_message(&discord,
                                              &message.channel_id,
