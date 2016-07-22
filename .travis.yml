@@ -1,15 +1,144 @@
 language: rust
 
-rust:
-- stable
-- beta
-- nightly
-
 matrix:
   fast_finish: true
+# AFAICT There are a few ways to set up the build jobs. This one is not the DRYest but I feel is the
+# easiest to reason about.
+# TODO Feel free to remove the channels/targets you don't need
+# NOTE Make *sure* you don't remove a reference (&foo) if you are going to dereference it (*foo)
+matrix:
+  include:
+    # nightly channel
+    - os: linux
+      rust: nightly
+      env: TARGET=aarch64-unknown-linux-gnu
+      # need Trusty because the glibc in Precise is too old and doesn't support 64-bit arm
+      dist: trusty
+      sudo: required
+      # Extra packages only for this job
+      addons:
+        apt:
+          packages: &aarch64_unknown_linux_gnu
+            # Transparent emulation
+            - qemu-user-static
+            - binfmt-support
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - binutils-dev
+            - cmake
+            - gcc
+            - binutils-dev
+    - os: linux
+      rust: nightly
+      env: TARGET=armv7-unknown-linux-gnueabihf
+      # sudo is needed for binfmt_misc, which is needed for transparent user qemu emulation
+      sudo: required
+      addons:
+        apt:
+          packages: &armv7_unknown_linux_gnueabihf
+            # Cross compiler and cross compiled C libraries
+            - gcc-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+            # Transparent emulation
+            - qemu-user-static
+            - binfmt-support
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - binutils-dev
+            - cmake
+            - gcc
+            - binutils-dev
+    - os: osx
+      rust: nightly
+      env: TARGET=i686-apple-darwin
+    - os: linux
+      rust: nightly
+      env: TARGET=i686-unknown-linux-gnu
+      addons:
+        apt:
+          packages: &i686_unknown_linux_gnu
+            # Cross compiler and cross compiled C libraries
+            - gcc-multilib
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - binutils-dev
+            - cmake
+            - gcc
+            - binutils-dev
+    - os: linux
+      rust: nightly
+      env: TARGET=i686-unknown-linux-musl
+    - os: osx
+      rust: nightly
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: nightly
+      env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: nightly
+      env: TARGET=x86_64-unknown-linux-musl
   allow_failures:
-  - rust: stable
-  - rust: beta
+    # Beta channel
+    - os: linux
+      rust: beta
+      env: TARGET=aarch64-unknown-linux-gnu
+    - os: linux
+      rust: beta
+      env: TARGET=armv7-unknown-linux-gnueabihf
+    - os: osx
+      rust: beta
+      env: TARGET=i686-apple-darwin
+    - os: linux
+      rust: beta
+      env: TARGET=i686-unknown-linux-gnu
+    - os: linux
+      rust: beta
+      env: TARGET=i686-unknown-linux-musl
+    - os: osx
+      rust: beta
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: beta
+      env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: beta
+      env: TARGET=x86_64-unknown-linux-musl
+    # stable channel
+    - os: linux
+      rust: stable
+      env: TARGET=aarch64-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=armv7-unknown-linux-gnueabihf
+    - os: osx
+      rust: stable
+      env: TARGET=i686-apple-darwin
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-musl
+    - os: osx
+      rust: stable
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-musl
+      # Target `i686-unknown-linux-musl` is currently only available on the nightly channel
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-musl
+    - os: linux
+      rust: beta
+      env: TARGET=i686-unknown-linux-musl
 
 cache:
   - cargo: true
@@ -21,16 +150,6 @@ cache:
     - target/debug/build
     - target/release/deps
     - target/release/build
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
-      - cmake
-      - gcc
-      - binutils-dev
 
 # load libsodium.
 before_install:
@@ -47,18 +166,54 @@ before_install:
       rm -r $HOME/libsodium-1.0.8
       rm $HOME/libsodium-1.0.8.tar.gz
     fi
+  - |
+    if [ ! -f "$HOME/.cargo/bin/clippy" ]; then
+      cargo install clippy
+    fi
+  - pip install 'travis-cargo<0.2' --user
+  - export PATH=$HOME/.local/bin:$PATH
   - export PKG_CONFIG_PATH=$HOME/installed_libsodium/lib/pkgconfig:$PKG_CONFIG_PATH
   - export LD_LIBRARY_PATH=$HOME/installed_libsodium/lib:$LD_LIBRARY_PATH
 
-# Load travis-cargo
-before_script:
-  - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
-  - cargo install --force clippy
-
 # The main build
+install:
+  - bash $HOME/build/TheDoctorsLife/discord-bot/ci/install.sh
+
 script:
-  - travis-cargo build
-  - cargo clippy
+  - bash $HOME/build/TheDoctorsLife/discord-bot/ci/script.sh
+
+before_deploy:
+  - bash $HOME/build/TheDoctorsLife/discord-bot/ci/before_deploy.sh
+
+deploy:
+  provider: releases
+  # TODO Regenerate this api_key for your project, this one won't work for you. Here's how:
+  # - Go to 'https://github.com/settings/tokens/new' and generate a Token with only the
+  # `public_repo` scope enabled
+  # - Call `travis encrypt $github_token` where $github_token is the token you got in the previous
+  # step and `travis` is the official Travis CI gem (see https://rubygems.org/gems/travis/)
+  # - Enter the "encrypted value" below
+  api_key:
+    secure: aLyVgmimaRMCvh2YF4ek0ZseWqKpqCSrvvYdf5rxhZUBnYK+KKlHBsPudtmWbHTh19PPC1C3wSHa8y94IObGl3iRRTICh5e/Oz9xzCiPYlQ0ZGmtM+MfRtUq2xFRc6aaAkrnfW0ur3uxk4a7ZBIOMg3D7kG7Ah4dg5dVf26OmpSBdEijo9bcvOLHXwZIc1bby+MJl8kxzdlwaV7UTrqHQFh+tmMsoO0GQcQpCP3y45f5/8aTkHRmnC1IKCiHKDZpRFDWhdoz02NGWcCnoH43iSwOobe1jacHicmZ7dNHKT/e1tfUIPpbO81fvQ7FHifvBRoO64Wvl5l/IaoDcngv6o11JlWRxIuZnr01oDv+DW8kv9POLYeh2xzMaQkZ8NkPZl82hqr8t0q0OtXZjm/Hysdcvr0T26hbwqs1sOkAAaeRdR0zl/Log53hNqM4HaZZ0CnKGU8dSatC+NOgHEfz68fHArf8DUdKIr3By73tD7T7kJjT1h6F+4E2nYVbHrl20/PV+XO97+9LUNOy6IhbQN0hQjoHVra5oWcZy9WiWgX8IV74yw6vEAQh6XDUWtU9XR7Tl1TjaO/mR8MgOJuQkLt58QWPs50BgUD9XSvDVIurPilZ0bQzvM7js6nTupmd3oaZiYSZCxOTj0LpV34fdEaFX0qSlrSFQw6YYMAawks=
+  file_glob: true
+  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.*
+  # don't delete the artifacts from previous phases
+  skip_cleanup: true
+  # deploy when a new tag is pushed
+  on:
+    # channel to use to produce the release artifacts
+    # NOTE make sure you only release *once* per target
+    # TODO you may want to pick a different channel
+    condition: $TRAVIS_RUST_VERSION = nightly
+    tags: true
+
+branches:
+  only:
+    # Pushes and PR to the master branch
+    - master
+    # IMPORTANT Ruby regex to match tags. Required, or travis won't trigger deploys when a new tag
+    # is pushed. This regex matches semantic versions like v1.2.3-rc4+2016.02.22
+    - /^v\d+\.\d+\.\d+.*$/
 
 # Upload Coveralls
 after_success:
@@ -85,6 +240,14 @@ env:
     - PATH=$LOCAL/bin:$PATH
     # encrypted github token for doc upload
     - secure: "lCN6rBfwhIckFMGFTXhYLXxr3EAHfgG3zag/NgrnGQxd2jacBIf7kUTMbXYwO2ovst97q6MxbOCEX5ebMjoCKKCywWvG2u7dYM5D7uH2W1/zCFS6YvARz3h00pFNJh1gWCX2POtFH4i231HFjWHe5FQD5TL+/q/VktLBuXwrNd+qILiPYuZMjdkGbvMjbmiT/KgI8IzA4Qd48xRih3I5uH9eDYmjZ59we98rtER4XmYq2IPBmRlkj835zEdZNAcV1kJHSuhrRVh/ijGeV703qSEB97NAM7jE0UaCWc2o/fakP77dX3bsSU7FrH3HLPstn4t1XTw1Oo9eAGa0Up6lMiVtkuzCDnzROkTmLKiQtBJIGrUrqsnFmKPFfcOhK1/kCe4xccSLg6WoQqlZaOlwjOcu2rOMCtO0phyjqBb9G/ZTcHfGShHEZV7yWVdEHp66AyFytywdr1EZsPpcllZNNZ4tODfUCv5i3BKtUopyhKYwh8wBuqT4q9orH3+h35Q7Htmi54AhqJf/UGe+5ssYUaQ9o0XyhcTiy2M88oZfndfml86jEWF7QXxraEOODgKB9nMBc6TlIVgCA03mQL+ofNlgJk5DDvyhhEymeBVOCTiPRAC+AmyQUepwTdIMyWviDPIU3GD80ocmZ7oJg/BC1fVwT0OrBs5HZV2Os2EFt+I="
+    # This will be part of the release tarball
+    # TODO change the project name
+    - PROJECT_NAME=discord_bot
+    # TODO comment out this variable if you don't want to build .deb packages on all the targets.
+    - MAKE_DEB=yes
+    # TODO update these two variables. They are part of the .deb package metadata
+    - DEB_MAINTAINER="Benjamin Hoffmeyer <hoffmeyer25@gmail.com>"
+    - DEB_DESCRIPTION="A discord-bot, written in Rust"
 
 notifications:
   email:
