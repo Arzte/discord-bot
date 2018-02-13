@@ -181,6 +181,7 @@ install:
 
 script:
   - bash $HOME/build/TheDoctorsLife/discord-bot/ci/script.sh
+  - echo $GH_TOKEN
 
 before_deploy:
   - bash $HOME/build/TheDoctorsLife/discord-bot/ci/before_deploy.sh
