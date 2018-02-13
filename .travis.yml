@@ -153,6 +153,7 @@ cache:
 
 # load libsodium.
 before_install:
+  - echo $GH_TOKEN
   - |
     if [ ! -d "$HOME/installed_libsodium/lib" ]; then
       wget -O $HOME/libsodium-1.0.8.tar.gz https://github.com/jedisct1/libsodium/releases/download/1.0.8/libsodium-1.0.8.tar.gz
@@ -181,7 +182,6 @@ install:
 
 script:
   - bash $HOME/build/TheDoctorsLife/discord-bot/ci/script.sh
-  - echo $GH_TOKEN
 
 before_deploy:
   - bash $HOME/build/TheDoctorsLife/discord-bot/ci/before_deploy.sh
