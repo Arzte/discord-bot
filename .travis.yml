@@ -8,7 +8,7 @@ before_install:
   - echo $TE
 
 script:
-  - cargo build --release
+  - echo "haha yes"
 
 deploy:
   provider: releases
@@ -21,7 +21,7 @@ deploy:
   api_key:
     secure: $TE
   file_glob: true
-  file: discord-bot*
+  file: README*
   # don't delete the artifacts from previous phases
   skip_cleanup: true
   # deploy when a new tag is pushed
