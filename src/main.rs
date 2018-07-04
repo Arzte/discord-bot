@@ -19,8 +19,8 @@ use cleverbot_io::Cleverbot;
 
 fn main() {
     // Read and set config vars
-    let mut file = File::open("config.json").unwrap();
-    let mut config = String::new();
+    let mut file: File = File::open("config.json").unwrap();
+    let mut config: String = String::new();
     file.read_to_string(&mut config).unwrap();
 
     #[derive(Deserialize)]
@@ -31,11 +31,11 @@ fn main() {
         pub cleverbot_api_key: String,
     }
 
-    let config_json = serde_json::from_str::<Config>(&config).unwrap();
-    let bot_tokens = config_json.discord_bot_token;
-    let welcome_messages = config_json.server_welcome_message;
-    let api_user = config_json.cleverbot_api_user;
-    let api_key = config_json.cleverbot_api_key;
+    let config_json: Config = serde_json::from_str::<Config>(&config).unwrap();
+    let bot_tokens: String = config_json.discord_bot_token;
+    let welcome_messages: String = config_json.server_welcome_message;
+    let api_user: String = config_json.cleverbot_api_user;
+    let api_key: String = config_json.cleverbot_api_key;
 
     info("bot-token has been set to [REDACTED] from config");
     info(&format!("welcome-message has been set to {} from the config",
@@ -44,30 +44,32 @@ fn main() {
     info(&format!("api-key {}", api_key));
 
     // Login to the API
-    let discord = Discord::from_bot_token(&bot_tokens).expect("Login Failed, Please make sure that you set a correct bot token.");
+    let discord: Discord = Discord::from_bot_token(&bot_tokens).expect("Login Failed, Please make sure that you set a correct bot token.");
 
     // establish websocket and voice connection
     let (mut connection, ready) = discord.connect().expect("connect failed");
     println!("[Ready] {} is serving {} servers",
              ready.user.username,
              ready.servers.len());
-    let mut state = State::new(ready);
+    let mut state: State = State::new(ready);
 
     // receive events forever
     loop {
-        let event = match connection.recv_event() {
+        let event: Event = match connection.recv_event() {
             Ok(event) => event,
             Err(err) => {
                 warning(&format!("Receive error: {:?}", err));
-                if let discord::Error::WebSocket(..) = err {
-                    // Handle the websocket connection being dropped
-                    let (new_connection, ready) = discord.connect().expect("connect failed");
-                    connection = new_connection;
-                    state = State::new(ready);
-                    println!("[Ready] Reconnected successfully.");
-                }
-                if let discord::Error::Closed(..) = err {
-                    break;
+                match err {
+                    discord::Error::WebSocket(..) => {
+                        // Handle the websocket connection being dropped
+                        let (new_connection, ready) = discord.connect().expect("connect failed");
+                        connection = new_connection;
+                        state = State::new(ready);
+                        println!("[Ready] Reconnected successfully.");
+                    },
+                    discord::Error::Closed(..) => {
+                        break;
+                    }
                 }
                 continue;
             }
@@ -110,19 +112,22 @@ fn main() {
                     } else if argument.eq_ignore_ascii_case("quit") {
                         vchan.map(|(sid, _)| connection.drop_voice(sid));
                     } else {
-                        let output = if let Some((server_id, channel_id)) = vchan {
-                            match discord::voice::open_ytdl_stream(argument) {
-                                Ok(stream) => {
-                                    let voice = connection.voice(server_id);
-                                    voice.set_deaf(true);
-                                    voice.connect(channel_id);
-                                    voice.play(stream);
-                                    String::new()
+                        let output: String = match vchan {
+                            Some((server_id, channel_id)) => {
+                                match discord::voice::open_ytdl_stream(argument) {
+                                    Ok(stream) => {
+                                        let voice = connection.voice(server_id);
+                                        voice.set_deaf(true);
+                                        voice.connect(channel_id);
+                                        voice.play(stream);
+                                        String::new()
+                                    }
+                                    Err(error) => format!("Error: {}", error),
                                 }
-                                Err(error) => format!("Error: {}", error),
+                            },
+                            _ => {
+                                "You must be in a voice channel to DJ".to_owned()
                             }
-                        } else {
-                            "You must be in a voice channel to DJ".to_owned()
                         };
                         if output.is_empty() {
                             warn(discord.send_message(&message.channel_id, &output, "", false));
@@ -130,7 +135,7 @@ fn main() {
                     }
                 } else if first_word.eq_ignore_ascii_case("!catfacts") {
                     // Construct the URL you want to access
-                    let url = "http://catfacts-api.appspot.com/api/facts?number=1"
+                    let url: Url = "http://catfacts-api.appspot.com/api/facts?number=1"
                         .parse::<Url>()
                         .expect("Unable to parse URL");
 
@@ -139,7 +144,7 @@ fn main() {
                     let mut response = client.get(url).send().unwrap();
 
                     // Initialize a string buffer, and read the response into it.
-                    let mut result = String::new();
+                    let mut result: String = String::new();
                     response.read_to_string(&mut result).unwrap();
 
                     // Deserialize the result.
@@ -148,9 +153,9 @@ fn main() {
                         pub facts: Vec<String>,
                         pub success: bool,
                     }
-                    let cat_fact =
+                    let cat_fact: String =
                         serde_json::from_str::<CatFacts>(&result).unwrap().facts.pop().unwrap();
-                    let cat_facts = remove_quote(&cat_fact);
+                    let cat_facts: String = remove_quote(&cat_fact);
 
                     send_discord_message(&discord,
                                          &message.channel_id,
@@ -158,7 +163,7 @@ fn main() {
                                                   message.author.id.mention(),
                                                   cat_facts));
                 } else if first_word.eq_ignore_ascii_case("!cleverbot") {
-                    let mut bot = Cleverbot::new(api_user.clone(), api_key.clone(), None).unwrap();
+                    let mut bot: Cleverbot = Cleverbot::new(api_user.clone(), api_key.clone(), None).unwrap();
                     #[allow(useless_format)]
                     send_discord_message(&discord, &message.channel_id, &format!("{}", bot.say(&format!("{}", message.content)).unwrap()));
                 } else if first_word.eq_ignore_ascii_case("!quit") {
@@ -176,20 +181,16 @@ fn main() {
                     }
                 }
             }
-            Event::VoiceStateUpdate(server_id, _) => {
-                // If someone moves/hangs up, and we are in a voice channel,
-                if let Some(cur_channel) = connection.voice(server_id).current_channel() {
-                    // and our current voice channel is empty, disconnect from voice
-                    if let Some(srv) = state.servers().iter().find(|srv| srv.id == server_id) {
-                        if srv.voice_states
-                            .iter()
-                            .filter(|vs| vs.channel_id == Some(cur_channel))
-                            .count() <= 1 {
-                            connection.voice(server_id).disconnect();
-                        }
-                    }
-                }
-            }
+            Event::VoiceStateUpdate(server_id, _) => match connection.voice(server_id).current_channel() {
+                Some(cur_channel) => match state.servers().iter().find(|srv| srv.id == server_id) {
+                    Some(srv) => if srv.voice_states
+                        .iter()
+                        .filter(|vs| vs.channel_id == Some(cur_channel))
+                        .count() <= 1 {
+                        connection.voice(server_id).disconnect();
+                    },
+                },
+            },
             Event::ServerMemberAdd(server_joined_id, member) => {
                 let channel_id = ChannelId(server_joined_id.0);
 

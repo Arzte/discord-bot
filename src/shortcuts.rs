@@ -5,27 +5,22 @@ use self::discord::Discord;
 use self::discord::model::ChannelId;
 
 pub fn warn<T, E: ::std::fmt::Debug>(result: Result<T, E>) {
-    match result {
-        Ok(_) => {}
-        Err(err) => println!("[Warning] {:?}", err),
+    if let Err(err) = result {
+        println!("[Warning] {:?}", err)
     }
 }
 
 #[allow(unknown_lints)]
 #[allow(match_same_arms)]
-pub fn send_discord_message(discord: &Discord, channel: &ChannelId, message: &str) {
-    let result = discord.send_message(channel, message, "", false);
-    match result {
-        Ok(_) => {} // nothing to do, it was sent - the `Ok()` contains a `Message` if you want it
-        Err(discord::Error::RateLimited(milliseconds)) => {
-            let sleep_duration = std::time::Duration::from_millis(milliseconds);
+pub fn send_discord_message<'a, 'b, 'c>(discord: &'a Discord, channel: &'b ChannelId, message: &'c str) {
+    let result: Result<Message, Error> = discord.send_message(channel, message, "", false);
+    if let Err(discord::Error::RateLimited(milliseconds)) = result {
+        let sleep_duration = std::time::Duration::from_millis(milliseconds);
 
-            warning(&format!("We were rate limited for {:?} milliseconds.",
-                             sleep_duration));
-            std::thread::sleep(sleep_duration);
-            send_discord_message(discord, channel, message);
-        }
-        _ => {} // discard all other events
+        warning(&format!("We were rate limited for {:?} milliseconds.",
+                         sleep_duration));
+        std::thread::sleep(sleep_duration);
+        send_discord_message(discord, channel, message);
     }
 }
 
@@ -37,8 +32,8 @@ pub fn info(output: &str) {
 }
 
 pub fn remove_quote(text: &str) -> String {
-    let mut start_quote = None;
-    let mut end_quote = None;
+    let mut start_quote: Option<usize> = None;
+    let mut end_quote: Option<usize> = None;
     let mut bytes: Vec<u8> = text.bytes().collect();
 
     for (i, &c) in bytes.iter().enumerate() {
@@ -62,8 +57,8 @@ pub fn remove_quote(text: &str) -> String {
 }
 
 pub fn remove_block_brace(text: &str) -> String {
-    let mut start_brace = None;
-    let mut end_brace = None;
+    let mut start_brace: Option<usize> = None;
+    let mut end_brace: Option<usize> = None;
     let mut bytes: Vec<u8> = text.bytes().collect();
 
     for (i, &c) in bytes.iter().enumerate() {
